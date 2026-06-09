@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    html,
+    body {
+      background: transparent !important;
+    }
+  </style>
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Window Ruler - 屏幕量尺工具</title>
+  <script type="module" src="/main.js" defer></script>
+</head>
+
+<body>
+  <!-- 工具栏（主界面） -->
+  <div id="toolbar" class="toolbar" data-tauri-drag-region role="toolbar" aria-label="屏幕量尺工具栏">
+    <button id="btn-rect-measure" class="toolbar-btn" aria-label="矩形测量">矩形测量</button>
+    <button id="btn-crosshair-measure" class="toolbar-btn" aria-label="十字线测量">十字线测量</button>
+    <button id="btn-coord-system" class="toolbar-btn" aria-label="切换坐标系">屏幕坐标系</button>
+    <button id="btn-exit" class="toolbar-btn toolbar-btn-danger" aria-label="退出">退出</button>
+  </div>
+
+  <!-- 量尺覆盖层（全屏模式下显示） -->
+  <div id="ruler-overlay" class="ruler-overlay" role="application" aria-label="屏幕量尺覆盖层" aria-hidden="true">
+    <canvas id="ruler-canvas" aria-hidden="true"></canvas>
+
+    <!-- 测量信息面板 -->
+    <div id="info-panel" class="info-panel" role="status" aria-live="polite" aria-atomic="true">
+      <!-- 拖动手柄 + 收敛/展开按钮 -->
+      <div id="info-panel-header" class="info-panel-header">
+        <span id="info-panel-drag" class="info-panel-drag" aria-label="拖动移动面板" title="拖动移动">&#8942;&#8942;</span>
+        <span id="info-panel-summary" class="info-panel-summary"></span>
+        <button id="info-panel-toggle" class="info-panel-toggle" aria-label="展开/收敛面板" title="点击展开/收敛">&#9660;</button>
+      </div>
+      <!-- 可折叠内容区域 -->
+      <div id="info-panel-body" class="info-panel-body">
+        <!-- 测量模式指示 -->
+        <div id="mode-indicator" class="mode-indicator">
+          <span id="mode-badge" class="mode-badge mode-badge-rect">矩形测量</span>
+        </div>
+
+        <div class="info-row">
+          <span class="info-label">距离:</span>
+          <span id="info-distance" class="info-value">0 px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">宽度:</span>
+          <span id="info-width" class="info-value">0 px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">高度:</span>
+          <span id="info-height" class="info-value">0 px</span>
+        </div>
+        <div class="divider" role="separator"></div>
+        <div class="info-row">
+          <span class="info-label">到左边缘:</span>
+          <span id="info-left" class="info-value">0 px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">到右边缘:</span>
+          <span id="info-right" class="info-value">0 px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">到上边缘:</span>
+          <span id="info-top" class="info-value">0 px</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">到下边缘:</span>
+          <span id="info-bottom" class="info-value">0 px</span>
+        </div>
+        <!-- 像素测量区域（十字线模式时显示） -->
+        <div id="pixel-section" class="pixel-section" style="display: none;">
+          <div class="divider" role="separator"></div>
+          <div class="pixel-row">
+            <span class="pixel-row-label">基准颜色:</span>
+            <span id="pixel-color-preview" class="pixel-color-preview" aria-label="基准颜色预览"></span>
+          </div>
+          <div class="pixel-row">
+            <span class="pixel-row-label">同色宽度:</span>
+            <span id="pixel-width-info" class="info-value">0 px</span>
+          </div>
+          <div class="pixel-row">
+            <span class="pixel-row-label">同色高度:</span>
+            <span id="pixel-height-info" class="info-value">0 px</span>
+          </div>
+        </div>
+      </div><!-- /info-panel-body -->
+    </div>
+
+    <!-- 坐标跟随提示 -->
+    <div id="cursor-tooltip" class="cursor-tooltip" role="tooltip" aria-hidden="true">
+      <span id="cursor-x">X: 0</span>
+      <span id="cursor-y">Y: 0</span>
+    </div>
+
+    <!-- 操作提示 -->
+    <div id="action-hint" class="action-hint" role="note">
+      拖拽测量 | S 保存 | ESC 退出
+    </div>
+
+    <!-- 保存结果提示 -->
+    <div id="save-toast" class="save-toast" role="alert" aria-live="assertive" aria-atomic="true">
+      <span id="save-toast-icon" aria-hidden="true"></span>
+      <span id="save-toast-message"></span>
+    </div>
+  </div>
+</body>
+
+</html>

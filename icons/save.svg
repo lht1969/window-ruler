@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="save-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#16a34a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#15803d;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="48" height="48" fill="rgba(15, 23, 42, 0.9)"/>
+  
+  <g transform="translate(8, 8)">
+    <rect x="4" y="4" width="24" height="24" rx="3" fill="none" stroke="rgba(134, 239, 172, 0.4)" stroke-width="1.5"/>
+    <rect x="8" y="8" width="16" height="12" rx="2" fill="none" stroke="rgba(134, 239, 172, 0.3)" stroke-width="1"/>
+    
+    <g fill="url(#save-gradient)">
+      <rect x="10" y="10" width="12" height="8" rx="1"/>
+      <polygon points="16,22 12,18 14,18 14,16 18,16 18,18 20,18"/>
+    </g>
+    
+    <g stroke="#86efac" stroke-width="1.5" stroke-linecap="round" fill="none">
+      <line x1="6" y1="16" x2="4" y2="16"/>
+      <line x1="26" y1="16" x2="28" y2="16"/>
+      <line x1="16" y1="6" x2="16" y2="4"/>
+      <line x1="16" y1="26" x2="16" y2="28"/>
+    </g>
+  </g>
+</svg>

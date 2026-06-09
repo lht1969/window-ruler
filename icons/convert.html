@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图标转换工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #f8fafc;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 32px;
+            background: linear-gradient(90deg, #2563eb, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .controls {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        label {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        select,
+        input {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #f8fafc;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        button {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            border: none;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(37, 99, 235, 0.3);
+        }
+
+        button.danger {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+        }
+
+        button.danger:hover {
+            box-shadow: 0 8px 16px rgba(220, 38, 38, 0.3);
+        }
+
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+        }
+
+        .icon-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .icon-name {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #93c5fd;
+        }
+
+        .preview-area {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 8px;
+            min-height: 80px;
+        }
+
+        .preview-item {
+            text-align: center;
+        }
+
+        .preview-size {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .status {
+            margin-top: 16px;
+            padding: 12px;
+            background: rgba(22, 163, 74, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 6px;
+            color: #86efac;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .status.error {
+            background: rgba(220, 38, 38, 0.2);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .sizes-section {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sizes-section h3 {
+            font-size: 0.9rem;
+            color: #c084fc;
+            margin-bottom: 12px;
+        }
+
+        .size-options {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .size-tag {
+            background: rgba(37, 99, 235, 0.2);
+            border: 1px solid rgba(37, 99, 235, 0.3);
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-size: 0.8rem;
+            color: #93c5fd;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>SVG 转 PNG 转换工具</h1>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>输出尺寸:</label>
+                <select id="sizeSelect">
+                    <option value="16">16x16</option>
+                    <option value="24">24x24</option>
+                    <option value="32">32x32</option>
+                    <option value="48">48x48</option>
+                    <option value="64">64x64</option>
+                    <option value="128">128x128</option>
+                    <option value="256">256x256</option>
+                </select>
+                <button id="convertAllBtn">批量转换所有图标</button>
+                <button id="clearStatusBtn" class="danger">清除状态</button>
+            </div>
+            <div id="status" class="status"></div>
+        </div>
+
+        <div class="icon-grid" id="iconGrid"></div>
+    </div>
+
+    <script>
+        const icons = [
+            { name: '应用主图标', file: 'app-icon.svg', baseSize: 128 },
+            { name: '矩形测量', file: 'rect-measure.svg', baseSize: 48 },
+            { name: '十字线测量', file: 'crosshair-measure.svg', baseSize: 48 },
+            { name: '退出程序', file: 'exit.svg', baseSize: 48 },
+            { name: '保存数据', file: 'save.svg', baseSize: 48 },
+            { name: '窗口定位', file: 'window.svg', baseSize: 48 }
+        ];
+
+        const iconGrid = document.getElementById('iconGrid');
+        const statusEl = document.getElementById('status');
+
+        function showStatus(message, isError = false) {
+            statusEl.textContent = message;
+            statusEl.classList.remove('error', 'show');
+            if (isError) statusEl.classList.add('error');
+            statusEl.classList.add('show');
+            setTimeout(() => statusEl.classList.remove('show'), 5000);
+        }
+
+        async function loadSVG(file) {
+            try {
+                const response = await fetch(file);
+                return await response.text();
+            } catch (e) {
+                console.error('加载失败:', file, e);
+                return null;
+            }
+        }
+
+        function svgToPNG(svgText, size) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                const blob = new Blob([svgText], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = size;
+                    canvas.height = size;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, size, size);
+                    URL.revokeObjectURL(url);
+                    resolve(canvas.toDataURL('image/png'));
+                };
+
+                img.onerror = (err) => {
+                    URL.revokeObjectURL(url);
+                    reject(err);
+                };
+
+                img.src = url;
+            });
+        }
+
+        function downloadPNG(dataUrl, filename) {
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = filename;
+            link.click();
+        }
+
+        async function createIconCard(icon) {
+            const card = document.createElement('div');
+            card.className = 'icon-card';
+
+            const svgText = await loadSVG(icon.file);
+            if (!svgText) {
+                card.innerHTML = `
+                    <div class="icon-name">${icon.name}</div>
+                    <p style="color: #fca5a5; font-size: 0.9rem;">加载失败: ${icon.file}</p>
+                `;
+                return card;
+            }
+
+            const previewArea = document.createElement('div');
+            previewArea.className = 'preview-area';
+
+            const previewSizes = [24, 32, 48, 64];
+            for (const size of previewSizes) {
+                try {
+                    const pngData = await svgToPNG(svgText, size);
+                    const item = document.createElement('div');
+                    item.className = 'preview-item';
+                    item.innerHTML = `
+                        <img src="${pngData}" width="${size}" height="${size}" alt="${size}x${size}">
+                        <div class="preview-size">${size}x${size}</div>
+                    `;
+                    previewArea.appendChild(item);
+                } catch (e) {
+                    console.error('预览失败:', e);
+                }
+            }
+
+            const buttonGroup = document.createElement('div');
+            buttonGroup.className = 'button-group';
+
+            const sizes = [16, 24, 32, 48, 64, 128, 256];
+            for (const size of sizes) {
+                const btn = document.createElement('button');
+                btn.textContent = `${size}x${size}`;
+                btn.style.fontSize = '0.8rem';
+                btn.style.padding = '6px 12px';
+                btn.onclick = async () => {
+                    try {
+                        const pngData = await svgToPNG(svgText, size);
+                        const baseName = icon.file.replace('.svg', '');
+                        downloadPNG(pngData, `${baseName}-${size}x${size}.png`);
+                        showStatus(`已下载: ${baseName}-${size}x${size}.png`);
+                    } catch (e) {
+                        showStatus(`转换失败: ${e.message}`, true);
+                    }
+                };
+                buttonGroup.appendChild(btn);
+            }
+
+            const sizesSection = document.createElement('div');
+            sizesSection.className = 'sizes-section';
+            sizesSection.innerHTML = `
+                <h3>推荐尺寸</h3>
+                <div class="size-options">
+                    <span class="size-tag">16x16 (小图标)</span>
+                    <span class="size-tag">32x32 (按钮)</span>
+                    <span class="size-tag">48x48 (工具栏)</span>
+                    <span class="size-tag">128x128 (应用图标)</span>
+                </div>
+            `;
+
+            card.innerHTML = `<div class="icon-name">${icon.name}</div>`;
+            card.appendChild(previewArea);
+            card.appendChild(buttonGroup);
+            card.appendChild(sizesSection);
+
+            card.svgText = svgText;
+            card.iconName = icon.name;
+            card.baseName = icon.file.replace('.svg', '');
+
+            return card;
+        }
+
+        async function init() {
+            for (const icon of icons) {
+                const card = await createIconCard(icon);
+                iconGrid.appendChild(card);
+            }
+        }
+
+        document.getElementById('convertAllBtn').onclick = async () => {
+            const size = parseInt(document.getElementById('sizeSelect').value);
+            const cards = iconGrid.querySelectorAll('.icon-card');
+
+            let success = 0;
+            let failed = 0;
+
+            for (const card of cards) {
+                if (card.svgText) {
+                    try {
+                        const pngData = await svgToPNG(card.svgText, size);
+                        downloadPNG(pngData, `${card.baseName}-${size}x${size}.png`);
+                        success++;
+                        await new Promise(r => setTimeout(r, 200));
+                    } catch (e) {
+                        failed++;
+                    }
+                }
+            }
+
+            showStatus(`批量转换完成: 成功 ${success} 个${failed > 0 ? `，失败 ${failed} 个` : ''}`);
+        };
+
+        document.getElementById('clearStatusBtn').onclick = () => {
+            statusEl.classList.remove('show');
+        };
+
+        init();
+    </script>
+</body>
+
+</html>

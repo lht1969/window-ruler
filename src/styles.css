@@ -1,0 +1,515 @@
+/* ============================================
+   Window Ruler - 屏幕量尺工具样式
+   遵循WCAG 2.1 AA级无障碍标准
+   ============================================ */
+
+/* CSS变量定义 */
+:root {
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-success: #16a34a;
+  --color-error: #dc2626;
+  /* 背景色设为透明，减少对其他窗口的遮挡 */
+  --color-bg: transparent;
+  --color-surface: transparent;
+  --color-text: #f8fafc;
+  --color-text-secondary: #94a3b8;
+  --color-accent: #f59e0b;
+  --color-line: #ef4444;
+  --color-line-secondary: #3b82f6;
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  --font-mono: "Cascadia Code", "Fira Code", Consolas, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* 重置与基础 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  background: transparent;
+  color: var(--color-text);
+}
+
+/* ============================================
+   工具栏
+   ============================================ */
+.toolbar {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 16px;
+  /* 半透明背景配合毛玻璃模糊效果，减少遮挡同时保持可读性 */
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.toolbar-btn {
+  padding: 8px 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+  outline: none;
+  white-space: nowrap;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.4;
+}
+
+.toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.toolbar-btn:active {
+  transform: scale(0.97);
+}
+
+.toolbar-btn:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.toolbar-btn-danger {
+  color: #fca5a5;
+  border-color: rgba(252, 165, 165, 0.25);
+}
+
+.toolbar-btn-danger:hover {
+  background: rgba(220, 38, 38, 0.2);
+  border-color: rgba(252, 165, 165, 0.4);
+}
+
+/* 窗口坐标系按钮样式 - 绿色视觉提示 */
+.toolbar-btn-window-coord {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+  background: rgba(34, 197, 94, 0.15);
+}
+
+/* ============================================
+   量尺覆盖层
+   ============================================ */
+.ruler-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: none;
+  cursor: crosshair;
+  user-select: none;
+  -webkit-user-select: none;
+  background: transparent;
+}
+
+.ruler-overlay.active {
+  display: block;
+}
+
+#ruler-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* ============================================
+   信息面板
+   ============================================ */
+.info-panel {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  /* 灰黑色背景，保持信息可读性 */
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 0;
+  min-width: 200px;
+  z-index: 10;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  /* 使用 user-select 防止拖动时选中文字 */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 面板头部（拖动手柄 + 摘要 + 收敛按钮） */
+.info-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: move;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* 拖动手柄图标 */
+.info-panel-drag {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  flex-shrink: 0;
+}
+
+/* 横幅摘要（收敛时显示关键信息） */
+.info-panel-summary {
+  flex: 1;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 收敛/展开按钮 */
+.info-panel-toggle {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 0.625rem;
+  padding: 2px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+
+.info-panel-toggle:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.info-panel-toggle:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 1px;
+}
+
+/* 可折叠内容区域 */
+.info-panel-body {
+  padding: 12px 20px 16px;
+  overflow: hidden;
+  transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease;
+  max-height: 600px;
+  opacity: 1;
+}
+
+/* 收敛状态 */
+.info-panel.collapsed .info-panel-body {
+  max-height: 0;
+  opacity: 0;
+  padding: 0 20px;
+}
+
+.info-panel.collapsed .info-panel-header {
+  border-bottom: none;
+}
+
+/* 收敛时切换箭头方向 */
+.info-panel.collapsed .info-panel-toggle {
+  transform: rotate(180deg);
+}
+
+/* 模式指示器 */
+.mode-indicator {
+  margin-bottom: 12px;
+}
+
+.mode-badge {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 100px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  letter-spacing: 0.03em;
+}
+
+.mode-badge-rect {
+  background: rgba(37, 99, 235, 0.2);
+  color: #93c5fd;
+  border: 1px solid rgba(37, 99, 235, 0.35);
+}
+
+.mode-badge-crosshair {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+/* 坐标系指示器 */
+.coord-indicator {
+  font-size: 0.6875rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.coord-indicator-screen {
+  color: #60a5fa;
+  background: transparent;
+}
+
+.coord-indicator-window {
+  color: #22c55e;
+  background: transparent;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 3px 0;
+}
+
+.info-label {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.info-value {
+  color: var(--color-text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.info-value.highlight {
+  color: var(--color-accent);
+}
+
+.divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 8px 0;
+}
+
+/* ============================================
+   坐标跟随提示
+   ============================================ */
+.cursor-tooltip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 20;
+  /* 完全透明背景 + 深蓝色文字，醒目且不遮挡 */
+  background: transparent;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  /* 加大字号，提升可读性 */
+  font-size: 0.875rem;
+  /* 深蓝色文字，在纯白背景下清晰可读 */
+  color: #1e3a8a;
+  /* 白色描边，确保在深色背景下也能看清 */
+  text-shadow: -1px -1px 0 #ffffff, 1px -1px 0 #ffffff, -1px 1px 0 #ffffff, 1px 1px 0 #ffffff;
+  white-space: nowrap;
+  /* 使用 will-change 优化 transform 性能 */
+  will-change: transform;
+  display: flex;
+  gap: 12px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.cursor-tooltip.visible {
+  opacity: 1;
+}
+
+/* ============================================
+   操作提示
+   ============================================ */
+.action-hint {
+  position: fixed;
+  bottom: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  /* 黑色半透明背景 */
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 100px;
+  padding: 8px 20px;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  z-index: 10;
+  white-space: nowrap;
+}
+
+/* ============================================
+   保存结果提示 (Toast)
+   ============================================ */
+.save-toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  /* 半透明背景，减少遮挡 */
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  padding: 20px 32px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 100;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.save-toast.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.save-toast.success {
+  border-color: rgba(22, 163, 74, 0.3);
+}
+
+.save-toast.error {
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+#save-toast-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+#save-toast-message {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+/* ============================================
+   无障碍辅助
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================
+   像素测量区域（整合在信息面板内）
+   ============================================ */
+.pixel-section {
+  margin-top: 0;
+}
+
+.pixel-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 3px 0;
+}
+
+.pixel-row-label {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pixel-color-preview {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: #000000;
+}
+
+/* ============================================
+   保存成功闪光效果
+   ============================================ */
+@keyframes save-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.3);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+.info-panel.save-flash {
+  animation: save-flash 0.6s ease-out;
+}
+
+/* ============================================
+   保存结果提示 (Toast) 覆盖
+   ============================================ */
+.save-toast.success #save-toast-icon {
+  color: #22c55e;
+}
+
+.save-toast.error #save-toast-icon {
+  color: #ef4444;
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: more) {
+
+  .info-panel,
+  .cursor-tooltip,
+  .action-hint {
+    border-width: 2px;
+    /* 高对比度模式下使用稍高透明度确保可读性 */
+    background: rgba(0, 0, 0, 0.7);
+  }
+
+  .info-value {
+    color: #ffffff;
+  }
+}

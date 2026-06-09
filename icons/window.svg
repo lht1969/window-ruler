@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="window-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="48" height="48" fill="rgba(15, 23, 42, 0.9)"/>
+  
+  <g transform="translate(6, 8)">
+    <rect x="2" y="2" width="32" height="24" rx="2" fill="none" stroke="url(#window-gradient)" stroke-width="2"/>
+    <rect x="2" y="2" width="32" height="6" rx="2" fill="rgba(37, 99, 235, 0.15)"/>
+    
+    <g fill="url(#window-gradient)">
+      <circle cx="6" cy="5" r="1.5"/>
+      <circle cx="10" cy="5" r="1.5"/>
+      <circle cx="14" cy="5" r="1.5"/>
+    </g>
+    
+    <rect x="4" y="10" width="12" height="14" rx="1" fill="none" stroke="#3b82f6" stroke-width="1" stroke-dasharray="2 2"/>
+    <rect x="20" y="10" width="10" height="14" rx="1" fill="none" stroke="#3b82f6" stroke-width="1" stroke-dasharray="2 2"/>
+  </g>
+</svg>
