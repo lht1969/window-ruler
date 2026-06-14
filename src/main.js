@@ -77,7 +77,7 @@ let modeBadge;
 // 操作提示元素
 let actionHint;
 // 工具栏相关 DOM 元素
-let toolbar, btnRectMeasure, btnCrosshairMeasure, btnCoordSystem, btnExit;
+let toolbar, btnRectMeasure, btnCrosshairMeasure, btnCoordSystem, btnExit, btnAbout;
 
 // ============================================
 // 初始化
@@ -150,6 +150,7 @@ function cacheElements() {
   btnCrosshairMeasure = document.getElementById('btn-crosshair-measure');
   btnExit = document.getElementById('btn-exit');
   btnCoordSystem = document.getElementById('btn-coord-system');
+  btnAbout = document.getElementById('btn-about');
 }
 
 // ============================================
@@ -189,6 +190,16 @@ function bindToolbarEvents() {
         btnCoordSystem.textContent = state.coordSystem === CoordSystem.WINDOW ? '窗口坐标系' : '屏幕坐标系';
         // 窗口坐标系时按钮显示绿色，提供明确视觉提示
         btnCoordSystem.classList.toggle('toolbar-btn-window-coord', state.coordSystem === CoordSystem.WINDOW);
+      }
+    });
+  }
+  // 关于按钮事件 - 调用 Rust 命令创建关于窗口
+  if (btnAbout) {
+    btnAbout.addEventListener('click', async () => {
+      try {
+        await invoke('create_about_window');
+      } catch (err) {
+        console.error('打开关于窗口失败:', err);
       }
     });
   }
@@ -647,6 +658,8 @@ async function onMouseUp(e) {
 /**
  * 键盘按键处理
  * S: 保存数据到剪贴板
+ * X: 截取测量区域截图到剪贴板
+ * C: 切换坐标系
  * ESC: 退出量尺模式
  */
 function onKeyDown(e) {
@@ -655,6 +668,9 @@ function onKeyDown(e) {
   if (key === 's' && !e.ctrlKey && !e.altKey && !e.metaKey) {
     e.preventDefault();
     saveMeasurement();
+  } else if (key === 'x' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    e.preventDefault();
+    captureScreenshot();
   } else if (key === 'c' && !e.ctrlKey && !e.altKey && !e.metaKey) {
     e.preventDefault();
     toggleCoordSystem();
@@ -713,11 +729,11 @@ function updateModeIndicator() {
   if (state.pixelMeasureMode === PixelMeasureMode.ON) {
     modeBadge.textContent = '十字线测量';
     modeBadge.className = 'mode-badge mode-badge-crosshair';
-    if (actionHint) actionHint.textContent = '移动鼠标测量 | C 切换坐标系 | S 保存 | ESC 退出';
+    if (actionHint) actionHint.textContent = '移动鼠标测量 | C 切换坐标系 | S 保存 | X 截屏 | ESC 退出';
   } else {
     modeBadge.textContent = '矩形测量';
     modeBadge.className = 'mode-badge mode-badge-rect';
-    if (actionHint) actionHint.textContent = '拖拽鼠标测量 | C 切换坐标系 | S 保存 | ESC 退出';
+    if (actionHint) actionHint.textContent = '拖拽鼠标测量 | C 切换坐标系 | S 保存 | X 截屏 | ESC 退出';
   }
 }
 
@@ -1643,6 +1659,55 @@ async function savePixelMeasurement() {
   } catch (err) {
     console.error('保存失败:', err);
     showToast('error', '保存失败: ' + err);
+  }
+}
+
+/**
+ * 截取当前测量区域的屏幕截图到剪贴板
+ * 矩形测量模式：截取 startPoint 到 endPoint 包围的矩形区域
+ * 十字线测量模式：截取 pixelResult 检测到的同色区域
+ */
+async function captureScreenshot() {
+  let region;
+
+  if (state.pixelMeasureMode === PixelMeasureMode.ON && state.pixelResult) {
+    // 十字线模式：使用检测到的同色区域边界（屏幕坐标）
+    const r = state.pixelResult;
+    region = {
+      left: Math.min(r.left, r.right),
+      top: Math.min(r.top, r.bottom),
+      right: Math.max(r.left, r.right),
+      bottom: Math.max(r.top, r.bottom)
+    };
+  } else if (state.measureState !== MeasureState.IDLE && state.startPoint && state.endPoint) {
+    // 矩形测量模式：使用拖拽起止点的屏幕坐标
+    if (state.startPoint.screenX === undefined) {
+      showToast('error', '缺少屏幕坐标信息，无法截屏');
+      return;
+    }
+    region = {
+      left: Math.min(state.startPoint.screenX, state.endPoint.screenX),
+      top: Math.min(state.startPoint.screenY, state.endPoint.screenY),
+      right: Math.max(state.startPoint.screenX, state.endPoint.screenX),
+      bottom: Math.max(state.startPoint.screenY, state.endPoint.screenY)
+    };
+  } else {
+    showToast('error', '没有正在进行的测量，无法截屏');
+    return;
+  }
+
+  try {
+    await invoke('capture_region_to_clipboard', {
+      left: region.left,
+      top: region.top,
+      right: region.right,
+      bottom: region.bottom
+    });
+    triggerSaveFlash();
+    showToast('success', '屏幕截图已复制到剪贴板');
+  } catch (err) {
+    console.error('截屏失败:', err);
+    showToast('error', '截屏失败: ' + err);
   }
 }
 

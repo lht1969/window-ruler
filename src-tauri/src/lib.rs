@@ -706,6 +706,263 @@ fn capture_screen_under_ruler(_hwnd: isize, _x: i32, _y: i32) -> Option<PixelMea
     None
 }
 
+// ============================================
+// 截屏功能：截取指定矩形区域到剪贴板（DIB 格式图片）
+// ============================================
+
+/// 截取指定屏幕区域到剪贴板（排除量尺窗口自身）
+#[cfg(target_os = "windows")]
+fn capture_region_to_clipboard_impl(ruler_hwnd_raw: isize, left: i32, top: i32, right: i32, bottom: i32) -> Result<(), String> {
+    extern "system" {
+        fn GetDC(hWnd: isize) -> isize;
+        fn ReleaseDC(hWnd: isize, hDC: isize) -> i32;
+        fn CreateCompatibleDC(hDC: isize) -> isize;
+        fn DeleteDC(hDC: isize) -> i32;
+        fn SelectObject(hDC: isize, h: isize) -> isize;
+        fn DeleteObject(h: isize) -> i32;
+        fn BitBlt(dest: isize, x: i32, y: i32, w: i32, h: i32, src: isize, x1: i32, y1: i32, rop: u32) -> i32;
+        fn GetDeviceCaps(hDC: isize, index: i32) -> i32;
+        fn SetWindowDisplayAffinity(hWnd: isize, affinity: u32) -> i32;
+        fn CreateDIBSection(hdc: isize, bmi: *const BITMAPINFO, usage: u32, bits: *mut *mut std::ffi::c_void, section: isize, offset: u32) -> isize;
+        fn OpenClipboard(hWnd: isize) -> i32;
+        fn EmptyClipboard() -> i32;
+        fn SetClipboardData(format: u32, hMem: isize) -> isize;
+        fn CloseClipboard() -> i32;
+        fn GlobalAlloc(flags: u32, size: usize) -> isize;
+        fn GlobalLock(hMem: isize) -> *mut std::ffi::c_void;
+        fn GlobalUnlock(hMem: isize) -> i32;
+    }
+
+    const SRCCOPY: u32 = 0x00CC0020;
+    const HORZRES: i32 = 8;
+    const VERTRES: i32 = 10;
+    const WDA_NONE: u32 = 0x00000000;
+    const WDA_EXCLUDEFROMCAPTURE: u32 = 0x00000011;
+    const DIB_RGB_COLORS: u32 = 0;
+    const CF_DIB: u32 = 8;
+    const GMEM_MOVEABLE: u32 = 0x0002;
+
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct BMIH {
+        size: u32,
+        w: i32,
+        h: i32,
+        planes: u16,
+        bpp: u16,
+        compression: u32,
+        image_size: u32,
+        x_ppm: i32,
+        y_ppm: i32,
+        used: u32,
+        important: u32,
+    }
+    #[repr(C)]
+    struct BITMAPINFO {
+        header: BMIH,
+        colors: [u32; 1],
+    }
+
+    let rw = right - left;
+    let rh = bottom - top;
+    if rw <= 0 || rh <= 0 {
+        return Err("无效的截屏区域".to_string());
+    }
+
+    // --- 1. 排除量尺窗口 ---
+    unsafe {
+        SetWindowDisplayAffinity(ruler_hwnd_raw, WDA_EXCLUDEFROMCAPTURE);
+    }
+
+    // --- 2. 获取屏幕 DC 和尺寸 ---
+    let hdc_screen;
+    let sw;
+    let sh;
+    unsafe {
+        hdc_screen = GetDC(0);
+        if hdc_screen == 0 {
+            SetWindowDisplayAffinity(ruler_hwnd_raw, WDA_NONE);
+            return Err("获取屏幕 DC 失败".to_string());
+        }
+        sw = GetDeviceCaps(hdc_screen, HORZRES);
+        sh = GetDeviceCaps(hdc_screen, VERTRES);
+    }
+
+    // --- 3. 创建内存 DC 和 DIBSection（top-down，全屏）---
+    let hdc_mem;
+    let hbmp;
+    let old_bmp;
+    let mut bits_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
+
+    unsafe {
+        hdc_mem = CreateCompatibleDC(hdc_screen);
+        if hdc_mem == 0 {
+            ReleaseDC(0, hdc_screen);
+            SetWindowDisplayAffinity(ruler_hwnd_raw, WDA_NONE);
+            return Err("创建内存 DC 失败".to_string());
+        }
+
+        let bmi = BITMAPINFO {
+            header: BMIH {
+                size: std::mem::size_of::<BMIH>() as u32,
+                w: sw,
+                h: -sh,
+                planes: 1,
+                bpp: 32,
+                compression: 0,
+                ..std::mem::zeroed()
+            },
+            colors: [0; 1],
+        };
+
+        hbmp = CreateDIBSection(hdc_screen, &bmi as *const BITMAPINFO, DIB_RGB_COLORS, &mut bits_ptr, 0, 0);
+        if hbmp == 0 {
+            DeleteDC(hdc_mem);
+            ReleaseDC(0, hdc_screen);
+            SetWindowDisplayAffinity(ruler_hwnd_raw, WDA_NONE);
+            return Err("创建 DIBSection 失败".to_string());
+        }
+
+        old_bmp = SelectObject(hdc_mem, hbmp);
+    }
+
+    // --- 4. BitBlt 捕获全屏 ---
+    let ok;
+    unsafe {
+        ok = BitBlt(hdc_mem, 0, 0, sw, sh, hdc_screen, 0, 0, SRCCOPY);
+    }
+    if ok == 0 {
+        unsafe {
+            SelectObject(hdc_mem, old_bmp);
+            DeleteObject(hbmp);
+            DeleteDC(hdc_mem);
+            ReleaseDC(0, hdc_screen);
+            SetWindowDisplayAffinity(ruler_hwnd_raw, WDA_NONE);
+        }
+        return Err("BitBlt 截屏失败".to_string());
+    }
+
+    // --- 5. 恢复量尺窗口 ---
+    unsafe {
+        SetWindowDisplayAffinity(ruler_hwnd_raw, WDA_NONE);
+    }
+
+    // --- 6. 读取全屏像素数据 ---
+    let stride = ((sw * 32 + 31) / 32) * 4;
+    let buf_size = (stride * sh) as usize;
+    let mut full_pixels: Vec<u8> = Vec::with_capacity(buf_size);
+    unsafe {
+        full_pixels.set_len(buf_size);
+        std::ptr::copy_nonoverlapping(bits_ptr as *const u8, full_pixels.as_mut_ptr(), buf_size);
+    }
+
+    // --- 7. 清理 GDI 资源 ---
+    unsafe {
+        SelectObject(hdc_mem, old_bmp);
+        DeleteObject(hbmp);
+        DeleteDC(hdc_mem);
+        ReleaseDC(0, hdc_screen);
+    }
+
+    // --- 8. 裁剪区域并构造 DIB（bottom-up）---
+    // 裁剪区域必须在屏幕范围内
+    let left = left.max(0).min(sw - 1);
+    let top = top.max(0).min(sh - 1);
+    let right = right.max(left + 1).min(sw);
+    let bottom = bottom.max(top + 1).min(sh);
+    let rw = right - left;
+    let rh = bottom - top;
+
+    let header_size = std::mem::size_of::<BMIH>() as u32;
+    let row_bytes = (rw * 4) as usize;
+    let pixel_data_size = row_bytes * (rh as usize);
+    let dib_size = header_size as usize + pixel_data_size;
+
+    unsafe {
+        let h_mem = GlobalAlloc(GMEM_MOVEABLE, dib_size);
+        if h_mem == 0 {
+            return Err("GlobalAlloc 失败".to_string());
+        }
+        let p_mem = GlobalLock(h_mem) as *mut u8;
+        if p_mem.is_null() {
+            GlobalUnlock(h_mem);
+            return Err("GlobalLock 失败".to_string());
+        }
+
+        // 写入 BITMAPINFOHEADER（正高度 = bottom-up）
+        let header = BMIH {
+            size: header_size,
+            w: rw,
+            h: rh,
+            planes: 1,
+            bpp: 32,
+            compression: 0,
+            ..std::mem::zeroed()
+        };
+        std::ptr::copy_nonoverlapping(&header as *const BMIH as *const u8, p_mem, header_size as usize);
+
+        // 写入像素数据（转换为 bottom-up）
+        let dst = p_mem.add(header_size as usize);
+        let src_stride = stride as usize;
+        for out_y in 0..rh {
+            // source row in top-down: top + (rh - 1 - out_y)
+            let src_row = (top + (rh - 1 - out_y)) as usize;
+            let src_offset = src_row * src_stride + (left as usize) * 4;
+            let dst_offset = (out_y as usize) * row_bytes;
+            std::ptr::copy_nonoverlapping(
+                full_pixels.as_ptr().add(src_offset),
+                dst.add(dst_offset),
+                row_bytes,
+            );
+        }
+
+        GlobalUnlock(h_mem);
+
+        // 打开剪贴板并设置 DIB 数据
+        if OpenClipboard(0) == 0 {
+            return Err("打开剪贴板失败".to_string());
+        }
+        if EmptyClipboard() == 0 {
+            CloseClipboard();
+            return Err("清空剪贴板失败".to_string());
+        }
+        if SetClipboardData(CF_DIB, h_mem) == 0 {
+            CloseClipboard();
+            return Err("设置剪贴板数据失败".to_string());
+        }
+        CloseClipboard();
+    }
+
+    Ok(())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn capture_region_to_clipboard_impl(_hwnd: isize, _left: i32, _top: i32, _right: i32, _bottom: i32) -> Result<(), String> {
+    Err("截屏功能仅支持 Windows 系统".to_string())
+}
+
+/// Tauri 命令：截取指定屏幕区域到剪贴板
+#[allow(unused_variables)]
+#[tauri::command]
+async fn capture_region_to_clipboard(app: tauri::AppHandle, left: i32, top: i32, right: i32, bottom: i32) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let ruler_hwnd = get_window_handle(&app, "ruler")
+            .map(|hwnd| hwnd.0 as isize)
+            .unwrap_or(0);
+        if ruler_hwnd == 0 {
+            return Err("量尺窗口不存在".to_string());
+        }
+        capture_region_to_clipboard_impl(ruler_hwnd, left, top, right, bottom)?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (app, left, top, right, bottom);
+        return Err("截屏功能仅支持 Windows 系统".to_string());
+    }
+    Ok(())
+}
+
 /// Tauri 命令：测量鼠标位置处同色像素的边界范围
 /// 临时隐藏量尺窗口 → BitBlt 捕获 DWM 合成桌面 → 恢复 → 扫描内存缓存
 #[allow(unused_variables)]
@@ -765,6 +1022,55 @@ async fn exit_app(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// 创建关于窗口
+#[tauri::command]
+async fn create_about_window(app: tauri::AppHandle) -> Result<(), String> {
+    // 如果关于窗口已存在，则聚焦并返回
+    if let Some(win) = app.get_webview_window("about") {
+        win.show().map_err(|e| e.to_string())?;
+        win.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    // 获取主窗口所在的显示器信息
+    let monitor = app
+        .get_webview_window("main")
+        .ok_or("主窗口不存在")?
+        .current_monitor()
+        .map_err(|e| e.to_string())?
+        .ok_or("无法获取显示器")?;
+
+    let monitor_size = monitor.size();
+    let monitor_pos = monitor.position();
+
+    // 计算窗口居中位置
+    let window_width = 380.0;
+    let window_height = 420.0;
+    let x = monitor_pos.x as f64 + (monitor_size.width as f64 - window_width) / 2.0;
+    let y = monitor_pos.y as f64 + (monitor_size.height as f64 - window_height) / 2.0;
+
+    // 创建关于窗口
+    tauri::WebviewWindowBuilder::new(
+        &app,
+        "about",
+        tauri::WebviewUrl::App("about.html".into()),
+    )
+    .title("关于 Window Ruler")
+    .inner_size(window_width, window_height)
+    .position(x, y)
+    .resizable(false)
+    .maximizable(false)
+    .minimizable(true)
+    .visible(true)
+    .focused(true)
+    .decorations(true)
+    .always_on_top(true)
+    .build()
+    .map_err(|e| format!("创建关于窗口失败: {}", e))?;
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -781,10 +1087,12 @@ pub fn run() {
             show_main_window,
             position_toolbar,
             exit_app,
+            create_about_window,
             enable_click_through,
             disable_click_through,
             get_window_under_mouse,
-            measure_pixel_bounds
+            measure_pixel_bounds,
+            capture_region_to_clipboard
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
