@@ -71,7 +71,7 @@ let cursorTooltip, cursorX, cursorY;
 let saveToast, saveToastIcon, saveToastMessage;
 // 目标窗口信息已移除
 // 像素测量相关 DOM 元素
-let pixelSection, pixelColorPreview, pixelWidthInfo, pixelHeightInfo;
+let pixelSection, pixelColorPreview, pixelColorRgb, pixelWidthInfo, pixelHeightInfo;
 // 模式指示相关 DOM 元素
 let modeBadge;
 // 操作提示元素
@@ -139,6 +139,7 @@ function cacheElements() {
   // 像素测量区域元素
   pixelSection = document.getElementById('pixel-section');
   pixelColorPreview = document.getElementById('pixel-color-preview');
+  pixelColorRgb = document.getElementById('pixel-color-rgb');
   pixelWidthInfo = document.getElementById('pixel-width-info');
   pixelHeightInfo = document.getElementById('pixel-height-info');
   // 模式指示元素
@@ -745,6 +746,7 @@ function updatePixelMeasureInfo(result) {
     if (pixelWidthInfo) pixelWidthInfo.textContent = '0 px';
     if (pixelHeightInfo) pixelHeightInfo.textContent = '0 px';
     if (pixelColorPreview) pixelColorPreview.style.backgroundColor = '#000000';
+    if (pixelColorRgb) pixelColorRgb.textContent = 'rgb(0, 0, 0)';
     if (infoWidth) infoWidth.textContent = '0 px';
     if (infoHeight) infoHeight.textContent = '0 px';
     if (infoLeft) infoLeft.textContent = '0 px';
@@ -763,6 +765,9 @@ function updatePixelMeasureInfo(result) {
   if (pixelColorPreview) {
     pixelColorPreview.style.backgroundColor = colorStr;
     pixelColorPreview.setAttribute('aria-label', `基准颜色: ${hexStr}`);
+  }
+  if (pixelColorRgb) {
+    pixelColorRgb.textContent = colorStr;
   }
 
   // 更新主信息面板的边缘距离

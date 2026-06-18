@@ -1,0 +1,13 @@
+{
+  "name": "window-ruler",
+  "version": "0.1.0",
+  "description": "A Tauri window ruler app for Windows",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}
