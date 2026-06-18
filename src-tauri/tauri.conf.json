@@ -11,10 +11,11 @@
     "windows": [
       {
         "title": "Window Ruler",
-        "width": 520,
-        "height": 56,
+        "width": 450,
+        "height": 40,
         "decorations": false,
         "transparent": true,
+        "shadow": false,
         "alwaysOnTop": true,
         "visible": false
       }

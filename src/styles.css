@@ -52,27 +52,26 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 0 16px;
-  /* 半透明背景配合毛玻璃模糊效果，减少遮挡同时保持可读性 */
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  gap: 8px;
+  padding: 0 12px;
+  /* 极透明背景，大幅减少对其他窗口的视觉影响 */
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
   user-select: none;
   -webkit-user-select: none;
 }
 
 .toolbar-btn {
-  padding: 8px 20px;
-  font-size: 0.875rem;
+  padding: 5px 12px;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: #f8fafc;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
+  color: #f1f5f9;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
   cursor: pointer;
   transition: background 0.15s ease, transform 0.1s ease;
   outline: none;
@@ -82,7 +81,8 @@ body {
 }
 
 .toolbar-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 .toolbar-btn:active {
@@ -96,19 +96,20 @@ body {
 
 .toolbar-btn-danger {
   color: #fca5a5;
-  border-color: rgba(252, 165, 165, 0.25);
+  border-color: rgba(252, 165, 165, 0.3);
+  background: rgba(127, 29, 29, 0.6);
 }
 
 .toolbar-btn-danger:hover {
-  background: rgba(220, 38, 38, 0.2);
-  border-color: rgba(252, 165, 165, 0.4);
+  background: rgba(127, 29, 29, 0.85);
+  border-color: rgba(252, 165, 165, 0.5);
 }
 
 /* 窗口坐标系按钮样式 - 绿色视觉提示 */
 .toolbar-btn-window-coord {
-  color: #4ade80;
+  color: #86efac;
   border-color: rgba(74, 222, 128, 0.3);
-  background: rgba(34, 197, 94, 0.15);
+  background: rgba(22, 101, 52, 0.6);
 }
 
 /* 关于按钮样式 */
@@ -122,11 +123,11 @@ body {
   border-radius: 50%;
   color: #93c5fd;
   border-color: rgba(147, 197, 253, 0.3);
-  background: rgba(59, 130, 246, 0.15);
+  background: rgba(30, 64, 175, 0.6);
 }
 
 .toolbar-btn-about:hover {
-  background: rgba(59, 130, 246, 0.25);
+  background: rgba(30, 64, 175, 0.85);
   border-color: rgba(147, 197, 253, 0.5);
 }
 
